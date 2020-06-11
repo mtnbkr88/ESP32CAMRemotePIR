@@ -27,8 +27,8 @@ Recorder I also posted in github. This ESP32-CAM Remote PIR has the following ca
   - Battery voltage indicator is connected to GPIO12.
   - PIR motion sensor is connected to GPIO13.
   - Pictures are JPG and videos are AVI.
-  - Uses a simple email utility I enhanced to send buffers or files which is also now
-    found on github and embedded in this sketch. 
+  - Uses a simple email utility I enhanced to send buffers or files which is embedded in this
+    sketch and also now found on github. 
 
 Use a 2N4401 transistor with the collector hooked to a 1K resistor then hooked to GPIO13.
 Connect the Dout wire from the PIR to a 1K resistor then connect to base of transistor. 
