@@ -1,5 +1,5 @@
 /**********************************************************************************
- * 06/20/2020 Edward Williams
+ * 06/21/2020 Edward Williams
  * Upon start this sketch will check if start was from a PIR signal or the deep 
  * timer/power on/reset).
  * 
@@ -51,7 +51,7 @@ const char* emailsendpwd = "YourEmailPwd";
 char email[40] = "DefaultMotionDetectEmail\@hotmail.com";  // this can be changed through Settings in the app
 
 const char* appName = "ESP32CamRemotePIR";
-const char* appVersion = "1.0.1";
+const char* appVersion = "1.0.2";
 const char* firmwareUpdatePassword = "87654321";
 
 // should not need to edit the below
@@ -2641,7 +2641,6 @@ void setup() {
     // set timezone
     setenv("TZ", TZ_INFO, 1); 
     tzset();
-    delay(1000);
     time(&now);
     localtime_r(&now, &timeinfo);
 
