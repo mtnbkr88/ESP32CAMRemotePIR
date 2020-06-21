@@ -1,5 +1,5 @@
 /**********************************************************************************
- * 06/10/2020 Edward Williams
+ * 06/20/2020 Edward Williams
  * Upon start this sketch will check if start was from a PIR signal or the deep 
  * timer/power on/reset).
  * 
@@ -33,7 +33,7 @@
 const char* ssid = "YourSSID";
 const char* password = "YourSSIDPwd";
 // fixed IP info
-const uint8_t IP_Address[4] = {192, 168, 2, 31};
+const uint8_t IP_Address[4] = {192, 168, 2, 30};
 const uint8_t IP_Gateway[4] = {192, 168, 2, 1};
 const uint8_t IP_Subnet[4] = {255, 255, 255, 0};
 const uint8_t IP_PrimaryDNS[4] = {8, 8, 8, 8};
@@ -51,7 +51,7 @@ const char* emailsendpwd = "YourEmailPwd";
 char email[40] = "DefaultMotionDetectEmail\@hotmail.com";  // this can be changed through Settings in the app
 
 const char* appName = "ESP32CamRemotePIR";
-const char* appVersion = "1.0.0";
+const char* appVersion = "1.0.1";
 const char* firmwareUpdatePassword = "87654321";
 
 // should not need to edit the below
@@ -2704,8 +2704,6 @@ void setup() {
     &CameraTask,
     0);
 
-  delay(1000);
-
   xTaskCreatePinnedToCore(
     codeForAviWriterTask,
     "AviWriterTask",
@@ -2714,8 +2712,6 @@ void setup() {
     2,
     &AviWriterTask,
     1);
-
-  delay(500);
 
   // take a action based on wakeup reason
   if ( PIRWakeup == 1 ) {
