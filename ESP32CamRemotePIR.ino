@@ -1,5 +1,5 @@
 /**********************************************************************************
- * 06/21/2020 Edward Williams
+ * 07/05/2020 Edward Williams
  * Upon start this sketch will check if start was from a PIR signal or the deep 
  * timer/power on/reset).
  * 
@@ -31,7 +31,7 @@
 
 // wifi info
 const char* ssid = "YourSSID";
-const char* password = "YourSSIDPwd";
+const char* password = "YourPwd";
 // fixed IP info
 const uint8_t IP_Address[4] = {192, 168, 2, 30};
 const uint8_t IP_Gateway[4] = {192, 168, 2, 1};
@@ -51,7 +51,7 @@ const char* emailsendpwd = "YourEmailPwd";
 char email[40] = "DefaultMotionDetectEmail\@hotmail.com";  // this can be changed through Settings in the app
 
 const char* appName = "ESP32CamRemotePIR";
-const char* appVersion = "1.0.2";
+const char* appVersion = "1.0.3";
 const char* firmwareUpdatePassword = "87654321";
 
 // should not need to edit the below
@@ -469,7 +469,18 @@ static esp_err_t config_camera() {  // returns true if an error, false is no err
 
   // camera init
   esp_camera_deinit();
-  delay(100);
+
+  // the below will hopefully solve the Camera init failed with error 0x20004 error
+  gpio_config_t gpio_pwr_config;
+  gpio_pwr_config.pin_bit_mask = (1ULL << GPIO_NUM_32);
+  gpio_pwr_config.mode = GPIO_MODE_OUTPUT;
+  gpio_pwr_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
+  gpio_pwr_config.pull_up_en = GPIO_PULLUP_DISABLE;
+  gpio_pwr_config.intr_type = GPIO_INTR_DISABLE;
+  gpio_config(&gpio_pwr_config);
+  gpio_set_level(GPIO_NUM_32,0);  // set GPIO32 low to power up camera
+  vTaskDelay(10/ portTICK_PERIOD_MS);
+
   esp_err_t cam_err = esp_camera_init(&config);
   if (cam_err != ESP_OK) {
     Serial.printf("Camera init failed with error 0x%x, trying again...", cam_err);
