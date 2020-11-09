@@ -1,5 +1,5 @@
 /**********************************************************************************
- * 07/05/2020 Edward Williams
+ * 11/09/2020 Edward Williams
  * Upon start this sketch will check if start was from a PIR signal or the deep 
  * timer/power on/reset).
  * 
@@ -31,7 +31,7 @@
 
 // wifi info
 const char* ssid = "YourSSID";
-const char* password = "YourPwd";
+const char* password = "YourSSIDPwd";
 // fixed IP info
 const uint8_t IP_Address[4] = {192, 168, 2, 30};
 const uint8_t IP_Gateway[4] = {192, 168, 2, 1};
@@ -51,7 +51,7 @@ const char* emailsendpwd = "YourEmailPwd";
 char email[40] = "DefaultMotionDetectEmail\@hotmail.com";  // this can be changed through Settings in the app
 
 const char* appName = "ESP32CamRemotePIR";
-const char* appVersion = "1.0.3";
+const char* appVersion = "1.0.4";
 const char* firmwareUpdatePassword = "87654321";
 
 // should not need to edit the below
@@ -74,7 +74,7 @@ time_t now;
 #include <Update.h>  // for flashing new firmware
 
 #define uS_TO_S_FACTOR 1000000LL  // Conversion factor for micro seconds to seconds
-#define TIME_TO_SLEEP2S  2        // Time ESP32 will go to sleep (in seconds)
+#define TIME_TO_SLEEP1S  1        // Time ESP32 will go to sleep (in seconds)
 
 // EEPROM setup for saving values over reboots
 #include <EEPROM.h>  // also used in OTA firmware update screen
@@ -117,7 +117,7 @@ int wakeupTime = 11300;  // X div 10000 is send wakeup email (1) or no (0),
 
 unsigned long timeout_10min = 0LL;
 int PIRActionActive = 0;  // 0 - not waiting for remote trigger, 1 - waiting for remote trigger
-RTC_DATA_ATTR int PIRWakeup = 0;   // 0 - wake from restart or timer trigger, 1 - PIR wakeup
+RTC_DATA_ATTR int PIRWakeup = 0;   // 0 - wake from restart or timer trigger, greater than 0 is PIR wakeup
 
 
 //~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -132,6 +132,9 @@ void do_deep_sleep() {
   
   //esp_sleep_enable_ext0_wakeup(GPIO_NUM_X, level)
   esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 0);
+
+  // turn off wifi
+  WiFi.disconnect();
 
   // setup time wakeup
   time(&now);
@@ -161,9 +164,12 @@ void do_deep_sleep() {
 //
 // 
 
-void do_deep_sleep_2sec() {  
+void do_deep_sleep_1sec() {  
 
-  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP2S * uS_TO_S_FACTOR);
+  // turn off wifi
+  WiFi.disconnect();
+
+  esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP1S * uS_TO_S_FACTOR);
   esp_deep_sleep_start();
 }
 
@@ -204,8 +210,8 @@ void major_fail() {  //flash the led on the ESP32 in case of error, then sleep a
     delay(450);
   }
 
-  // sleep for 2 seconds and restart
-  do_deep_sleep_2sec();
+  // sleep for 1 second and restart
+  do_deep_sleep_1sec();
 }
 
 
@@ -430,12 +436,13 @@ static esp_err_t do_fb() {
 //
 // 
 int cameraRunning = 0;  // 0 - not initialized, 1 - initialized, 2 - error initializing
+esp_err_t cam_err = 0;;
 
 static esp_err_t config_camera() {  // returns true if an error, false is no error
 
-  camera_config_t config;
-
   Serial.println(F("config camera"));
+
+  camera_config_t config;
 
   config.ledc_channel = LEDC_CHANNEL_0;
   config.ledc_timer = LEDC_TIMER_0;
@@ -470,27 +477,27 @@ static esp_err_t config_camera() {  // returns true if an error, false is no err
   // camera init
   esp_camera_deinit();
 
-  // the below will hopefully solve the Camera init failed with error 0x20004 error
-  gpio_config_t gpio_pwr_config;
-  gpio_pwr_config.pin_bit_mask = (1ULL << GPIO_NUM_32);
-  gpio_pwr_config.mode = GPIO_MODE_OUTPUT;
-  gpio_pwr_config.pull_down_en = GPIO_PULLDOWN_DISABLE;
-  gpio_pwr_config.pull_up_en = GPIO_PULLUP_DISABLE;
-  gpio_pwr_config.intr_type = GPIO_INTR_DISABLE;
-  gpio_config(&gpio_pwr_config);
-  gpio_set_level(GPIO_NUM_32,0);  // set GPIO32 low to power up camera
-  vTaskDelay(10/ portTICK_PERIOD_MS);
-
-  esp_err_t cam_err = esp_camera_init(&config);
+  cam_err = esp_camera_init(&config);
   if (cam_err != ESP_OK) {
-    Serial.printf("Camera init failed with error 0x%x, trying again...", cam_err);
-    esp_camera_deinit();
-    delay(100);
-    cam_err = esp_camera_init(&config);
+    int k = 1;
+    while ( cam_err != ESP_OK && k < 5 ) {
+      Serial.printf("Camera init failed with error 0x%x, trying again...", cam_err);
+      esp_camera_deinit();
+      delay( k * 100 );
+      cam_err = esp_camera_init(&config);
+      k++;
+      if ( cam_err == ESP_OK ) break;
+    }
     if (cam_err != ESP_OK) {
       Serial.printf("Camera init failed with error 0x%x", cam_err);
-      if ( PIRWakeup == 1 ) 
-        cameraRunning = 2;
+      if ( PIRWakeup > 0 ) {  // retry 10 times 
+        if ( PIRWakeup < 10 ) {    
+          PIRWakeup++;
+          do_deep_sleep_1sec();
+        }
+        else
+          cameraRunning = 2;
+      }
       else
         major_fail();
     }
@@ -528,8 +535,9 @@ static esp_err_t config_camera() {  // returns true if an error, false is no err
 // global variable used by these pieces
 
 // don't change the below unless you are certain you know what you are doing
-int capture_interval = 125; // microseconds between captures (set to 8 frames per second)
-int total_frames = 80;      // 8 frames per second times 10 seconds
+int frames_per_second = 10; 
+int capture_interval = round(1000 / frames_per_second); // microseconds between captures 
+int total_frames = 10 * frames_per_second;  // frames per second times 10 seconds
 int recording = 0;          // turned off until start of setup
 int framesize = 6;          // 10 uxga, 7 SVGA, 6 VGA, 5 CIF
 int repeat = 0;             // no repeating videos at this time
@@ -1103,7 +1111,9 @@ bool email_video( char * subject, char * message ) {
   startCamera();
 
   if ( cameraRunning == 2 ) {  // camera init failed
-    strcat( message, "\n\nCamera failed" );  
+    char errnum[40];
+    sprintf( errnum, "\n\n Camera failed - error 0x%x", cam_err );
+    strcat( message, errnum );  
   } else {
 
     // aviname will be set in start_avi_buf
@@ -1182,7 +1192,9 @@ bool email_pictures( char * subject, char * message, int pictureCount ) {
   char fname[10][100];
 
   if ( cameraRunning == 2 ) {  // camera init failed
-    strcat( message, "\n\nCamera failed" );  
+    char errnum[40];
+    sprintf( errnum, "\n\n Camera failed - error 0x%x", cam_err );
+    strcat( message, errnum );  
   } else {
 
     for ( int i = 0; i < pictureCount; i++ ) {
@@ -1596,7 +1608,7 @@ static esp_err_t index_handler(httpd_req_t *req) {
   } else if ( !strcmp( action, "emailpicture" ) ) {
     static char sub[30];
     strcpy( sub, "Camera Event" );
-    static char msg[100];
+    static char msg[120];
     strcpy( msg, "Manual trigger, please see attached picture\n" );
     strcat( msg, batteryMsg );
 
@@ -1710,8 +1722,8 @@ static esp_err_t reset_handler(httpd_req_t *req) {
 
   delay(3000);  // wait 3 seconds
   
-  // sleep 2 seconds and boot up
-  do_deep_sleep_2sec();
+  // sleep 1 second and boot up
+  do_deep_sleep_1sec();
   
   return ESP_OK;
 }
@@ -1974,7 +1986,7 @@ function do_time(action) {
 <h1>ESP32-CAM Remote PIR</h1>
  <h2>Settings</h2>
  <table id="actions">
-   <tr><td>All video recordings default to VGA (640x480), one frame every 125ms for 10 seconds.<br>
+   <tr><td>All video recordings default to VGA (640x480), one frame every %ims for 10 seconds.<br>
      Upon PIR wakeup a remote trigger can be sent to the IP address below.<br>
      A web server will wakeup once per day for 10 minutes to allow remote configuration.<br>
    </td></tr>
@@ -2030,7 +2042,7 @@ function do_time(action) {
  </table>
 </body></html>)rawliteral";
 
-  sprintf(the_page, msg3, remoteTriggerIP, email);
+  sprintf(the_page, msg3, capture_interval, remoteTriggerIP, email);
 
   // send last chunks
   httpd_resp_send_chunk(req, the_page, strlen(the_page));
@@ -2140,7 +2152,7 @@ static esp_err_t settings_handler(httpd_req_t *req) {
   } else if ( !strcmp( action, "email" ) ) {
     static char sub[30];
     strcpy( sub, "ESP32-CAM Test Email" );
-    static char msg[30];
+    static char msg[50];
     strcpy( msg, "This is a test email\n" );
     delay(3);
 
@@ -2390,7 +2402,7 @@ static esp_err_t updatefirmware_post_handler(httpd_req_t *req) {
     httpd_resp_send(req, the_page, strlen(the_page));
 
     delay(5000);
-    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP2S * uS_TO_S_FACTOR);
+    esp_sleep_enable_timer_wakeup(TIME_TO_SLEEP1S * uS_TO_S_FACTOR);
     esp_deep_sleep_start();
   } else {
     strcpy(the_page, "Firmware update failed - Invalid password");
@@ -2512,7 +2524,7 @@ TaskHandle_t RemoteTriggerTask;
 // 
 void codeForRemoteTriggerTask( void * parameter ) {
   PIRActionActive = 1;
-  if ( remoteTrigger > 9 ) {
+  if ( remoteTrigger > 9 && PIRWakeup == 1 ) {
     // send remote trigger to ip 
     char url[100];
     sprintf(url,"http://%s/remotetrigger?action=%i", remoteTriggerIP, 10 + (remoteTrigger % 10));
@@ -2555,7 +2567,7 @@ void PIR_wakeup() {
     if ( motionEmailAction < 17 ) {  // do pictures email
       static char sub[30];
       strcpy( sub, "Camera Event Detected" );
-      static char msg[100];
+      static char msg[120];
       strcpy( msg, "PIR trigger, please see attached pictures\n" );
       strcat( msg, batteryMsg );
       int pictureCount = (motionEmailAction % 10);
@@ -2564,7 +2576,7 @@ void PIR_wakeup() {
     } else {  // do 10 second video email
       static char sub[30];
       strcpy( sub, "Camera Event Detected" );
-      static char msg[100];
+      static char msg[120];
       strcpy( msg, "PIR trigger, please see attached video\n" );
       strcat( msg, batteryMsg );
       email_video( sub, msg );
@@ -2601,7 +2613,7 @@ void config_wakeup() {
   if ( (wakeupTime / 10000) == 1 ) {  // send a wakeup email
     static char sub[30];
     strcpy( sub, "Camera Wakeup Event" );
-    static char msg[100];
+    static char msg[120];
     strcpy( msg, "Remote PIR will be available for 10 minutes\n" );
     strcat( msg, batteryMsg );
     email_pictures( sub, msg, 1 );
@@ -2724,7 +2736,7 @@ void setup() {
     1);
 
   // take a action based on wakeup reason
-  if ( PIRWakeup == 1 ) {
+  if ( PIRWakeup > 0 ) {
     PIR_wakeup();
   } else {
     config_wakeup();
@@ -2756,7 +2768,7 @@ void loop() {
   if ( emailvideostatus == 1 ) {  // takes too long to keep in uri handler so doing it here
     static char sub[30];
     strcpy( sub, "Camera Event" );
-    static char msg[100];
+    static char msg[120];
     strcpy( msg, "Manual trigger, please see attached video\n" );
     strcat( msg, batteryMsg );
 
