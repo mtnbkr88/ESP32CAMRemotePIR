@@ -1,5 +1,5 @@
 /**********************************************************************************
- * 11/09/2020 Edward Williams
+ * 03/31/2022 Edward Williams
  * Upon start this sketch will check if start was from a PIR signal or the deep 
  * timer/power on/reset).
  * 
@@ -51,7 +51,7 @@ const char* emailsendpwd = "YourEmailPwd";
 char email[40] = "DefaultMotionDetectEmail\@hotmail.com";  // this can be changed through Settings in the app
 
 const char* appName = "ESP32CamRemotePIR";
-const char* appVersion = "1.0.4";
+const char* appVersion = "1.0.5";
 const char* firmwareUpdatePassword = "87654321";
 
 // should not need to edit the below
@@ -126,6 +126,13 @@ RTC_DATA_ATTR int PIRWakeup = 0;   // 0 - wake from restart or timer trigger, gr
 
 void do_deep_sleep() {  
 
+  // wait for PIR trigger event to end
+  while (gpio_get_level(GPIO_NUM_13) == 0) { 
+    delay(1000); 
+    if (gpio_get_level(GPIO_NUM_13) == 1) { delay(1000); }
+  }
+  delay(1000);
+  
   Serial.println("Going to deep sleep");
 
   PIRWakeup = 0;
