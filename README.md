@@ -2,7 +2,7 @@
 
 ESP32-CAM Remote PIR Solar Powered Picture/Video Emailer
 
-06/10/2020 Ed Williams 
+04/28/2022 Ed Williams 
 
 This ESP32-CAM Remote PIR can work independent or in conjunction with the ESP32-CAM Video 
 Recorder I also posted in github. This ESP32-CAM Remote PIR has the following capabilities:
@@ -27,15 +27,13 @@ Recorder I also posted in github. This ESP32-CAM Remote PIR has the following ca
   - Battery voltage indicator is connected to GPIO12.
   - PIR motion sensor is connected to GPIO13.
   - Pictures are JPG and videos are AVI.
-  - Uses a simple email utility I enhanced to send buffers or files which is embedded in this
-    sketch and also now found on github. 
+  - Uses a simple email utility I enhanced to send buffers or files which embedded in this
+    sketch and is also now found on github. 
 
-Use a 2N4401 transistor with the collector hooked to a 1K resistor then hooked to GPIO13.
-Connect the Dout wire from the PIR to a 1K resistor then connect to base of transistor. 
-Connect the emitter of the transistor to GND. See ECRP_Schematic.jpg for a picture of the wiring.
+See ECRP_Schematic.jpg for a picture of the wiring.
 
-Used pinMode(GPIO_NUM_13, INPUT_PULLUP) in the setup to pull the pin high. Now when 
-motion is detected, GPIO13 will be pulled low, otherwise it will be high.
+Used pinMode(GPIO_NUM_13, INPUT_PULLDOWN) in the setup to pull the pin low. Now when 
+motion is detected, GPIO13 will be pulled high, otherwise it will be low.
 
 ECRP_Main.jpg shows the main screen for the ESP32-CAM Remote PIR web site.
 

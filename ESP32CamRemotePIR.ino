@@ -1,5 +1,5 @@
 /**********************************************************************************
- * 03/31/2022 Edward Williams
+ * 04/28/2022 Edward Williams
  * Upon start this sketch will check if start was from a PIR signal or the deep 
  * timer/power on/reset).
  * 
@@ -30,10 +30,10 @@
 // edit the below for local settings 
 
 // wifi info
-const char* ssid = "YourSSID";
-const char* password = "YourSSIDPwd";
+const char* ssid = "YOURSSID";
+const char* password = "YOURSSIDPW";
 // fixed IP info
-const uint8_t IP_Address[4] = {192, 168, 2, 30};
+const uint8_t IP_Address[4] = {192, 168, 2, 35};
 const uint8_t IP_Gateway[4] = {192, 168, 2, 1};
 const uint8_t IP_Subnet[4] = {255, 255, 255, 0};
 const uint8_t IP_PrimaryDNS[4] = {8, 8, 8, 8};
@@ -46,13 +46,13 @@ const int SERVER_PORT = 80;  // port the main web server will listen on
 // edit email server info for the send part, recipient address is set through Settings in the app
 const char* emailhost = "smtp.gmail.com";
 const int emailport = 465;
-const char* emailsendaddr = "YourEmail\@gmail.com";
-const char* emailsendpwd = "YourEmailPwd";
-char email[40] = "DefaultMotionDetectEmail\@hotmail.com";  // this can be changed through Settings in the app
+const char* emailsendaddr = "youremail\@gmail.com";
+const char* emailsendpwd = "youremailpw";
+char email[40] = "youremail\@hotmail.com";  // this can be changed through Settings in the app
 
 const char* appName = "ESP32CamRemotePIR";
-const char* appVersion = "1.0.5";
-const char* firmwareUpdatePassword = "87654321";
+const char* appVersion = "1.0.6";
+const char* firmwareUpdatePassword = "12345678";
 
 // should not need to edit the below
 
@@ -127,9 +127,9 @@ RTC_DATA_ATTR int PIRWakeup = 0;   // 0 - wake from restart or timer trigger, gr
 void do_deep_sleep() {  
 
   // wait for PIR trigger event to end
-  while (gpio_get_level(GPIO_NUM_13) == 0) { 
+  while (gpio_get_level(GPIO_NUM_13) == 1) { 
     delay(1000); 
-    if (gpio_get_level(GPIO_NUM_13) == 1) { delay(1000); }
+    if (gpio_get_level(GPIO_NUM_13) == 0) { delay(1000); }
   }
   delay(1000);
   
@@ -138,7 +138,7 @@ void do_deep_sleep() {
   PIRWakeup = 0;
   
   //esp_sleep_enable_ext0_wakeup(GPIO_NUM_X, level)
-  esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 0);
+  esp_sleep_enable_ext0_wakeup(GPIO_NUM_13, 1);
 
   // turn off wifi
   WiFi.disconnect();
@@ -2749,8 +2749,8 @@ void setup() {
     config_wakeup();
   }
 
-  pinMode(GPIO_NUM_13, INPUT_PULLUP);   // enable pin as an INPUT pin, could also set as OUTPUT, INPUT_PULLUP
-              // note: in this build high on this pin indicates no motion, low indicates motion
+  pinMode(GPIO_NUM_13, INPUT_PULLDOWN);   // enable pin as an INPUT pin, could also set as OUTPUT, INPUT_PULLUP
+              // note: in this build high on this pin indicates motion, low indicates no motion
 
   digitalWrite(33, HIGH);  // turn off the red LED on the back of chip
 
