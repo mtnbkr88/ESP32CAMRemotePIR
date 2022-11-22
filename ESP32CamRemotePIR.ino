@@ -1,5 +1,5 @@
 /**********************************************************************************
- * 04/28/2022 Edward Williams
+ * 11/21/2022 Edward Williams
  * Upon start this sketch will check if start was from a PIR signal or the deep 
  * timer/power on/reset).
  * 
@@ -46,12 +46,12 @@ const int SERVER_PORT = 80;  // port the main web server will listen on
 // edit email server info for the send part, recipient address is set through Settings in the app
 const char* emailhost = "smtp.gmail.com";
 const int emailport = 465;
-const char* emailsendaddr = "youremail\@gmail.com";
-const char* emailsendpwd = "youremailpw";
-char email[40] = "youremail\@hotmail.com";  // this can be changed through Settings in the app
+const char* emailsendaddr = "YOUREMAIL\@gmail.com";
+const char* emailsendpwd = "YOUREMAILPW";
+char email[40] = "YOUREMAIL\@hotmail.com";  // this can be changed through Settings in the app
 
 const char* appName = "ESP32CamRemotePIR";
-const char* appVersion = "1.0.6";
+const char* appVersion = "1.0.7";
 const char* firmwareUpdatePassword = "12345678";
 
 // should not need to edit the below
@@ -126,10 +126,12 @@ RTC_DATA_ATTR int PIRWakeup = 0;   // 0 - wake from restart or timer trigger, gr
 
 void do_deep_sleep() {  
 
-  // wait for PIR trigger event to end
-  while (gpio_get_level(GPIO_NUM_13) == 1) { 
+  // wait up to 600 seconds for PIR trigger event to end
+  int loopcount = 0;
+  while ((gpio_get_level(GPIO_NUM_13) == 1) && (loopcount < 600)) { 
     delay(1000); 
     if (gpio_get_level(GPIO_NUM_13) == 0) { delay(1000); }
+    loopcount++;
   }
   delay(1000);
   
@@ -523,7 +525,7 @@ static esp_err_t config_camera() {  // returns true if an error, false is no err
     ss->set_special_effect(ss, 0);  // 0 regular, 2 grayscale
   }
 */
-    for (int j = 0; j < 5; j++) {
+    for (int j = 0; j < 10; j++) {
       do_fb();  // start the camera ... warm it up
       delay(20);
     }
@@ -845,7 +847,7 @@ static esp_err_t start_avi_buf() {
 
   Serial.println(F("Starting an avi "));
 
-  for (int j = 0; j < 5; j++) {
+  for (int j = 0; j < 10; j++) {
     do_fb();  // start the camera ... warm it up
     delay(20);
   }
