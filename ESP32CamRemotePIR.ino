@@ -1,5 +1,5 @@
 /**********************************************************************************
- * 11/21/2022 Edward Williams
+ * 11/25/2020 Edward Williams
  * Upon start this sketch will check if start was from a PIR signal or the deep 
  * timer/power on/reset).
  * 
@@ -1138,8 +1138,10 @@ bool email_video( char * subject, char * message ) {
     while ( recording == 1 ) { delay(100); }
   } 
 
-  while ( PIRActionActive == 1 ) {  // wait for remote PIR action to finish before sending email
-    delay(100);
+  int loopcount = 0; 
+  while ( (PIRActionActive == 1) && (loopcount < 6000) ) {  
+    delay(100);  // wait for remote PIR action to finish before sending email
+    loopcount++;  // but only for 10 min
   }
    
   Serial.print(F(" in emailvideo  Heap is: ")); Serial.println(ESP.getFreeHeap());
@@ -1239,8 +1241,10 @@ bool email_pictures( char * subject, char * message, int pictureCount ) {
     }
   }
   
-  while ( PIRActionActive == 1 ) {  // wait for remote PIR action to finish before sending email
-    delay(100);
+  int loopcount = 0; 
+  while ( (PIRActionActive == 1) && (loopcount < 6000) ) {  
+    delay(100);  // wait for remote PIR action to finish before sending email
+    loopcount++;  // but only for 10 min
   }
    
   Serial.print(F(" waiting in emailpicture  Heap is: ")); Serial.println(ESP.getFreeHeap());
@@ -2594,7 +2598,11 @@ void PIR_wakeup() {
 
   Serial.print(" PIR_wakeup after PIR action  Free Heap: "); Serial.println(ESP.getFreeHeap());
 
-  while ( PIRActionActive == 1 ) delay(100);  // wait for PIR remote trigger to finish
+  int loopcount = 0; 
+  while ( (PIRActionActive == 1) && (loopcount < 6000) ) {
+    delay(100);  // wait for PIR remote trigger to finish, only for 10 min
+    loopcount++;    
+  }
 
   Serial.print(" PIR_wakeup waiting to sleep  Free Heap: "); Serial.println(ESP.getFreeHeap());
 
